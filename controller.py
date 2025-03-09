@@ -73,7 +73,7 @@ def watch_configmaps(namespace):
         event_type = event['type']
         
         if event_type in ["MODIFIED", "DELETED"]:
-            print(f"Detected {event_type} event on ConfigMap {cm_name}")
+            logger.info(f"Detected {event_type} event on ConfigMap {cm_name}")
             restart_deployments(namespace, cm_name, "configmap")
 
 
