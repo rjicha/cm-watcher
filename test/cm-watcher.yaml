@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cm-watcher
+  namespace: default
+  labels:
+    app: cm-watcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cm-watcher
+  template:
+    metadata:
+      labels:
+        app: cm-watcher
+    spec:
+      serviceAccountName: cm-watcher-sa  
+      containers:
+        - name: cm-watcher
+          image: cm-watcher:latest
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
