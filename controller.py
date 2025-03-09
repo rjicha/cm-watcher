@@ -1,7 +1,9 @@
-import logging
-from kubernetes import client, config, watch
 import hashlib
+import logging
+import threading
 import time
+
+from kubernetes import client, config, watch
 
 
 # setup logging
@@ -24,20 +26,33 @@ def get_configmap_hash(namespace, name):
     data_str = "".join([f"{k}:{v}" for k, v in cm.data.items()])
     return hashlib.sha256(data_str.encode()).hexdigest()
 
+def get_secret_hash(namespace, name):
+    """ Generate a hash of the Secret to track changes """
+    secret = v1.read_namespaced_secret(name, namespace)
+    data_str = "".join([f"{k}:{v}" for k, v in secret.data.items()])
+    return hashlib.sha256(data_str.encode()).hexdigest()
 
-def restart_deployments(namespace, configmap_name):
-    """ Restart deployments that reference the ConfigMap """
+
+
+def restart_deployments(namespace, resource_name, resource_type):
+    """ Restart deployments that reference the ConfigMap or Secret """
     deployments = apps_v1.list_namespaced_deployment(namespace)
-    
+
     for dep in deployments.items:
         annotations = dep.spec.template.metadata.annotations or {}
-        
-        # check the ref from deploy -> cm
-        if f"configmap-hash/{configmap_name}" in annotations:
-            logger.info(f"Restarting deployment {dep.metadata.name} due to ConfigMap change...")
-            annotations[f"configmap-hash/{configmap_name}"] = get_configmap_hash(namespace, configmap_name)
-            
-            # the deployment patch should trigger restart & also persist the new hash
+
+        key = f"{resource_type}-hash/{resource_name}"  # eg. "configmap-hash/my-config" or "secret-hash/my-secret"
+        if key in annotations:
+            logger.info(f"Restarting deployment {dep.metadata.name} due to {resource_type} change...")
+            new_hash = (
+                get_configmap_hash(namespace, resource_name)
+                if resource_type == "configmap"
+                else get_secret_hash(namespace, resource_name)
+            )
+
+            annotations[key] = new_hash
+
+            # patch deployment to trigger restart
             patch = {
                 "spec": {
                     "template": {
@@ -49,6 +64,7 @@ def restart_deployments(namespace, configmap_name):
             }
             apps_v1.patch_namespaced_deployment(dep.metadata.name, namespace, patch)
 
+
 def watch_configmaps(namespace):
     """ Watch for ConfigMap changes and trigger deployment restarts """
     w = watch.Watch()
@@ -58,9 +74,32 @@ def watch_configmaps(namespace):
         
         if event_type in ["MODIFIED", "DELETED"]:
             print(f"Detected {event_type} event on ConfigMap {cm_name}")
-            restart_deployments(namespace, cm_name)
+            restart_deployments(namespace, cm_name, "configmap")
+
+
+def watch_secrets(namespace):
+    """ Watch for Secret changes and trigger deployment restarts """
+    w = watch.Watch()
+    for event in w.stream(v1.list_namespaced_secret, namespace):
+        secret_name = event['object'].metadata.name
+        event_type = event['type']
+
+        if event_type in ["MODIFIED", "DELETED"]:
+            logger.info(f"Detected {event_type} event on Secret {secret_name}")
+            restart_deployments(namespace, secret_name, "secret")
+            
 
 if __name__ == "__main__":
     namespace = "default"  # todo: pick from env !
-    logger.info(f"Watching for ConfigMap changes in namespace: {namespace} ....")
-    watch_configmaps(namespace)
+    logger.info(f"Watching for ConfigMap & Secret changes in namespace: {namespace} ....")
+
+    # run both watchers in separate threads
+    cm_thread = threading.Thread(target=watch_configmaps, args=(namespace,), daemon=True)
+    secret_thread = threading.Thread(target=watch_secrets, args=(namespace,), daemon=True)
+
+    cm_thread.start()
+    secret_thread.start()
+
+    # keep main thread alive
+    while True:
+        time.sleep(10)

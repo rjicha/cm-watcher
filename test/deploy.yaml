@@ -16,6 +16,7 @@ spec:
         app: nginx-app
       annotations:
         configmap-hash/watched-configmap: "f68e471e72655664ecd6d2da8724f416ea178c72ce31d3aa788b6b5ce7b24985"
+        secret-hash/watched-secret: "6f32bba24d0b71ef1f84a2b07e32bcadadb3e92f4f8a9e8a5f57f74b7e9d4c95"
     spec:
       containers:
       - name: nginx
@@ -25,6 +26,8 @@ spec:
         envFrom:
         - configMapRef:
             name: watched-configmap
+        - secretRef:
+            name: watched-secret
         resources:
           requests:
             cpu: "100m"

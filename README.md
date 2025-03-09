@@ -27,10 +27,16 @@ $ docker build -t cm-watcher:latest .
 $ kubectl apply -f test/cm-watcher-rbac.yaml
 $ kubectl apply -f test/cm-watcher.yaml
 $ kubectl apply -f test/cm.yaml
+$ kubectl apply -f test/secret.yaml
 $ kubectl apply -f test/deploy.yaml
 ```
 
-# Test the restart upon cm patch
+# Test the restart on cm patch
 ```sh
 $ kubectl patch configmap watched-configmap -n default --type='merge' -p '{"data":{"LOG_LEVEL":"debug"}}'
+```
+
+# Test the restart on secret patch
+```sh
+$ kubectl patch secret watched-secret -n default --type='merge' -p '{"data":{"API_KEY":"'$(echo -n "newSecretValue" | base64)'"}}'
 ```
