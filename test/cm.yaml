@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: watched-configmap
-  namespace: default
-data:
-  APP_ENV: "production"
-  LOG_LEVEL: "info"
-  FEATURE_FLAG: "enabled"

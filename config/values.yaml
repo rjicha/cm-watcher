@@ -1,0 +1,5 @@
+apiKey: secretKey
+dbPassword: secretPassword
+logLevel: debug
+env: production
+featureFlag: enabled
