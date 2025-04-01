@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: not-watched-configmap
+  namespace: default
+data:
+  APP_ENV: {{ .Values.env | quote }}
+  LOG_LEVEL: {{ .Values.logLevel | quote }}
+  FEATURE_FLAG: {{ .Values.featureFlag | quote }}

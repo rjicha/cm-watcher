@@ -1,0 +1,46 @@
+import threading
+import time
+import logging
+from kubernetes import client, config, watch
+
+# Initialize Kubernetes API client
+config.load_incluster_config()
+v1 = client.CoreV1Api()
+
+logger = logging.getLogger(__name__)
+
+class KubernetesResourceWatcher:
+    def __init__(self, namespace, resource_type, list_func, restart_callback):
+        """
+        Generic Kubernetes resource watcher.
+        
+        :param namespace: Namespace to watch
+        :param resource_type: "configmap" or "secret" (for logging)
+        :param list_func: Function to list the resource (e.g., v1.list_namespaced_secret)
+        :param restart_callback: Function to call when a resource changes
+        """
+        self.namespace = namespace
+        self.resource_type = resource_type
+        self.list_func = list_func
+        self.restart_callback = restart_callback
+
+    def watch(self):
+        """ Watches the specified Kubernetes resource and triggers restart_callback on changes. """
+        while True: 
+            w = watch.Watch()
+            try:
+                resource_version = "0"  # start from the latest state
+                for event in w.stream(self.list_func, self.namespace, resource_version=resource_version):
+                    resource_name = event['object'].metadata.name
+                    event_type = event['type']
+
+                    if event_type in ["MODIFIED", "DELETED"]:
+                        logger.info(f"Detected {event_type} event on {self.resource_type} {resource_name}")
+                        self.restart_callback(self.namespace, resource_name, self.resource_type)
+            except client.exceptions.ApiException as e:
+                if e.status == 410:
+                    logger.warning(f"{self.resource_type.capitalize()} watch expired. Restarting watch...")
+                    continue  # restart the loop
+                else:
+                    logger.error(f"Unexpected error watching {self.resource_type}: {e}")
+                    time.sleep(5)  # short delay before retrying to prevent excessive API calls

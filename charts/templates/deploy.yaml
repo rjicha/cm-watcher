@@ -15,8 +15,8 @@ spec:
       labels:
         app: nginx-app
       annotations:
-        configmap-hash/watched-configmap: {{ include (print $.Template.BasePath "/cm.yaml") . | sha256sum }}
-        secret-hash/watched-secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        configmap-hash/watched-configmap: {{ include "computeResourceHash" (dict "resource" (include (print $.Template.BasePath "/cm.yaml") .)) }}
+        secret-hash/watched-secret: {{ include "computeResourceHash" (dict "resource" (include (print $.Template.BasePath "/secret.yaml") .)) }}
     spec:
       containers:
       - name: nginx

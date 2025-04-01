@@ -22,13 +22,9 @@ $ eval $(minikube docker-env)
 $ docker build -t cm-watcher:latest .
 ```
 
-# Apply the test resources
+# Install the chart
 ```sh
-$ kubectl apply -f test/cm-watcher-rbac.yaml
-$ kubectl apply -f test/cm-watcher.yaml
-$ kubectl apply -f test/cm.yaml
-$ kubectl apply -f test/secret.yaml
-$ kubectl apply -f test/deploy.yaml
+$ helm install/upgrade test-deploy -f ./config/values.yaml ./charts/
 ```
 
 # Test the restart on cm patch
