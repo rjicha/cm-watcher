@@ -21,10 +21,11 @@ class KubernetesResourceWatcher:
         self.resource_type = resource_type
         self.list_func = v1.list_namespaced_config_map if resource_type == "configmap" else v1.list_namespaced_secret
         self.restart_callback = restart_callback
+        self.running = True
 
     def watch(self):
         """ Watches the specified Kubernetes resource and triggers restart_callback on changes. """
-        while True: 
+        while self.running:
             w = watch.Watch()
             try:
                 resource_version = "0"  # start from the latest state
@@ -42,3 +43,7 @@ class KubernetesResourceWatcher:
                 else:
                     logger.error(f"Unexpected error watching {self.resource_type}: {e}")
                     time.sleep(5)  # short delay before retrying to prevent excessive API calls
+
+
+    def stop(self):
+        self.running = False

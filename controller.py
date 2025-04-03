@@ -1,6 +1,7 @@
 import logging
 import threading
 import time
+import signal
 
 from kube.watcher import KubernetesResourceWatcher
 from kube.deploy import startup_deployment_check, check_dependent_deployments
@@ -12,6 +13,15 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+stop_event = threading.Event()
+
+def signal_handler(signum, frame):
+    logger.info("Received shutdown signal. Stopping watchers...")
+    stop_event.set()
+    cm_watcher.stop()
+    secret_watcher.stop()
 
 
 if __name__ == "__main__":
@@ -31,6 +41,12 @@ if __name__ == "__main__":
     cm_thread.start()
     secret_thread.start()
 
-    # keep main thread alive
-    while True:
-        time.sleep(10)
+    # handle SIGTERM & SIGINT
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # keep the main thread alive, but exit immediately on stop_event
+    while not stop_event.is_set():
+        time.sleep(1)
+
+    logger.info("Shutdown complete.")
