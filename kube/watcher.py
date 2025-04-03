@@ -1,27 +1,25 @@
-import threading
 import time
 import logging
 from kubernetes import client, config, watch
 
-# Initialize Kubernetes API client
+logger = logging.getLogger(__name__)
+
 config.load_incluster_config()
 v1 = client.CoreV1Api()
 
-logger = logging.getLogger(__name__)
 
 class KubernetesResourceWatcher:
-    def __init__(self, namespace, resource_type, list_func, restart_callback):
+    def __init__(self, namespace, resource_type, restart_callback):
         """
         Generic Kubernetes resource watcher.
         
         :param namespace: Namespace to watch
         :param resource_type: "configmap" or "secret" (for logging)
-        :param list_func: Function to list the resource (e.g., v1.list_namespaced_secret)
         :param restart_callback: Function to call when a resource changes
         """
         self.namespace = namespace
         self.resource_type = resource_type
-        self.list_func = list_func
+        self.list_func = v1.list_namespaced_config_map if resource_type == "configmap" else v1.list_namespaced_secret
         self.restart_callback = restart_callback
 
     def watch(self):
